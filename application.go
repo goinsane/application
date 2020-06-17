@@ -1,3 +1,4 @@
+// Package application offers simple application lifecycle framework.
 package application
 
 import (
@@ -8,6 +9,7 @@ import (
 	"time"
 )
 
+// Application is an interface for handling application lifecycle.
 type Application interface {
 	Start()
 	Run(ctx Context)
@@ -15,6 +17,7 @@ type Application interface {
 	Stop()
 }
 
+// Context is a custom implementation of context.Context with Terminate() method to terminate application.
 type Context interface {
 	context.Context
 	Terminate()
@@ -29,7 +32,8 @@ func (c *applicationContext) Terminate() {
 	c.CancelFunc()
 }
 
-func Run(app Application, terminateTimeout time.Duration, terminateSignal ...os.Signal) {
+// Run runs an Application by application lifecycle with terminateTimeout and terminateSignals.
+func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) {
 	app.Start()
 
 	ctx := new(applicationContext)
@@ -37,7 +41,7 @@ func Run(app Application, terminateTimeout time.Duration, terminateSignal ...os.
 	defer ctx.Terminate()
 	go func() {
 		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, terminateSignal...)
+		signal.Notify(ch, terminateSignals...)
 		<-ch
 		ctx.Terminate()
 	}()
