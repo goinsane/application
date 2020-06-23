@@ -12,7 +12,7 @@ import (
 // Application is an interface for handling application lifecycle.
 type Application interface {
 	Start(ctx Context)
-	Run()
+	Run(ctx Context)
 	Terminate(ctx context.Context)
 	Stop()
 }
@@ -50,7 +50,7 @@ func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		app.Run()
+		app.Run(ctx)
 	}()
 
 	wg.Add(1)
