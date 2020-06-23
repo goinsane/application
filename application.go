@@ -11,8 +11,8 @@ import (
 
 // Application is an interface for handling application lifecycle.
 type Application interface {
-	Start()
-	Run(ctx Context)
+	Start(ctx Context)
+	Run()
 	Terminate(ctx context.Context)
 	Stop()
 }
@@ -34,8 +34,6 @@ func (c *applicationContext) Terminate() {
 
 // Run runs an Application by application lifecycle with terminateTimeout and terminateSignals.
 func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) {
-	app.Start()
-
 	ctx := new(applicationContext)
 	ctx.Context, ctx.CancelFunc = context.WithCancel(context.Background())
 	defer ctx.Terminate()
@@ -45,13 +43,14 @@ func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os
 		<-ch
 		ctx.Terminate()
 	}()
+	app.Start(ctx)
 
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		app.Run(ctx)
+		app.Run()
 	}()
 
 	wg.Add(1)
