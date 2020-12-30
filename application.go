@@ -37,6 +37,7 @@ func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os
 	ctx := new(applicationContext)
 	ctx.Context, ctx.CancelFunc = context.WithCancel(context.Background())
 	defer ctx.Terminate()
+
 	go func() {
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, terminateSignals...)
