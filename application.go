@@ -34,6 +34,11 @@ func (c *applicationContext) Terminate() {
 
 // Run runs an Application by application lifecycle with terminateTimeout and terminateSignals.
 func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) {
+	RunAll([]Application{app}, terminateTimeout, terminateSignals...)
+}
+
+// RunAll runs all Application's in common Context by application lifecycle with terminateTimeout and terminateSignals.
+func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) {
 	ctx := new(applicationContext)
 	ctx.Context, ctx.CancelFunc = context.WithCancel(context.Background())
 	defer ctx.Terminate()
@@ -44,16 +49,25 @@ func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os
 		<-ch
 		ctx.Terminate()
 	}()
-	app.Start(ctx)
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		app.Run(ctx)
-	}()
+	for _, app := range apps {
+		wg.Add(1)
+		go func(app Application) {
+			defer wg.Done()
+			app.Start(ctx)
+		}(app)
+	}
+	wg.Wait()
 
+	for _, app := range apps {
+		wg.Add(1)
+		go func(app Application) {
+			defer wg.Done()
+			app.Run(ctx)
+		}(app)
+	}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -62,9 +76,22 @@ func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os
 		terminateCtx, terminateCtxCancel := context.WithTimeout(context.Background(), terminateTimeout)
 		defer terminateCtxCancel()
 
-		app.Terminate(terminateCtx)
+		for _, app := range apps {
+			wg.Add(1)
+			go func(app Application) {
+				defer wg.Done()
+				app.Terminate(terminateCtx)
+			}(app)
+		}
 	}()
-
 	wg.Wait()
-	app.Stop()
+
+	for _, app := range apps {
+		wg.Add(1)
+		go func(app Application) {
+			defer wg.Done()
+			app.Stop()
+		}(app)
+	}
+	wg.Wait()
 }
