@@ -76,6 +76,8 @@ func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals
 		terminateCtx, terminateCtxCancel := context.WithTimeout(context.Background(), terminateTimeout)
 		defer terminateCtxCancel()
 
+		var wg sync.WaitGroup
+		defer wg.Wait()
 		for _, app := range apps {
 			wg.Add(1)
 			go func(app Application) {
