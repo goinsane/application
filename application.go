@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"sync"
 	"time"
+
+	"github.com/goinsane/xcontext"
 )
 
 // Application is an interface for handling application lifecycle.
@@ -18,30 +20,20 @@ type Application interface {
 }
 
 // Context is a custom implementation of context.Context with Terminate() method to terminate application.
-type Context interface {
-	context.Context
-	Terminate()
-}
-
-type applicationContext struct {
-	context.Context
-	context.CancelFunc
-}
-
-func (c *applicationContext) Terminate() {
-	c.CancelFunc()
-}
+type Context = xcontext.TerminateContext
 
 // Run runs an Application by application lifecycle with terminateTimeout and terminateSignals.
-func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) {
-	RunAll([]Application{app}, terminateTimeout, terminateSignals...)
+// It returns terminateCtx as done or not done that used in Application.Terminate.
+func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) (terminateCtx context.Context) {
+	return RunAll([]Application{app}, terminateTimeout, terminateSignals...)
 }
 
 // RunAll runs all Application's in common Context by application lifecycle with terminateTimeout and terminateSignals.
-func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) {
-	ctx := new(applicationContext)
-	ctx.Context, ctx.CancelFunc = context.WithCancel(context.Background())
+// It returns terminateCtx as done or not done that used in Application.Terminate.
+func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) (terminateCtx context.Context) {
+	ctx := xcontext.WithTerminate(context.Background())
 	defer ctx.Terminate()
+	terminateCtx = xcontext.WithTerminate(context.Background())
 
 	go func() {
 		ch := make(chan os.Signal, 1)
@@ -73,8 +65,9 @@ func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals
 		defer wg.Done()
 		<-ctx.Done()
 
-		terminateCtx, terminateCtxCancel := context.WithTimeout(context.Background(), terminateTimeout)
-		defer terminateCtxCancel()
+		time.AfterFunc(terminateTimeout, func() {
+			terminateCtx.(Context).Terminate()
+		})
 
 		var wg sync.WaitGroup
 		defer wg.Wait()
@@ -96,4 +89,6 @@ func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals
 		}(app)
 	}
 	wg.Wait()
+
+	return terminateCtx
 }
