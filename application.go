@@ -22,18 +22,19 @@ type Application interface {
 // Context is a custom implementation of context.Context with Terminate() method to terminate application.
 type Context = xcontext.TerminateContext
 
-// Run runs an Application by application lifecycle with terminateTimeout and terminateSignals.
-// It returns terminateCtx as done or not done that used in Application.Terminate.
-func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) (terminateCtx context.Context) {
-	return RunAll([]Application{app}, terminateTimeout, terminateSignals...)
+// Run runs an Application by the application lifecycle with timeouts and terminate signals.
+// It returns false if the quit timeout occurs.
+func Run(app Application, terminateTimeout, quitTimeout time.Duration, terminateSignals ...os.Signal) bool {
+	return RunAll([]Application{app}, terminateTimeout, quitTimeout, terminateSignals...)
 }
 
-// RunAll runs all Application's in common Context by application lifecycle with terminateTimeout and terminateSignals.
-// It returns terminateCtx anyway if it is done or not done.
-func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) (terminateCtx context.Context) {
+// RunAll runs all Application's in common Context by the application lifecycle with timeouts and terminate signals.
+// It returns false if the quit timeout occurs.
+func RunAll(apps []Application, terminateTimeout, quitTimeout time.Duration, terminateSignals ...os.Signal) bool {
 	ctx := xcontext.WithTerminate2(context.Background())
 	defer ctx.Terminate()
-
+	terminateCtx, terminateCtxCancel := xcontext.DelayAfterContext(ctx, terminateTimeout)
+	defer terminateCtxCancel()
 	go func() {
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, terminateSignals...)
@@ -41,6 +42,20 @@ func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals
 		ctx.Terminate()
 	}()
 
+	quittedCh := make(chan struct{})
+	go func() {
+		lifecycle(ctx, apps, terminateCtx)
+		close(quittedCh)
+	}()
+	select {
+	case <-quittedCh:
+		return true
+	case <-xcontext.DelayAfterContext2(terminateCtx, quitTimeout).Done():
+		return false
+	}
+}
+
+func lifecycle(ctx Context, apps []Application, terminateCtx context.Context) {
 	var wg sync.WaitGroup
 
 	for _, app := range apps {
@@ -63,10 +78,6 @@ func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals
 	go func() {
 		defer wg.Done()
 		<-ctx.Done()
-		terminateCtx = xcontext.WithTimeout2(context.Background(), terminateTimeout)
-
-		var wg sync.WaitGroup
-		defer wg.Wait()
 		for _, app := range apps {
 			wg.Add(1)
 			go func(app Application) {
@@ -85,6 +96,4 @@ func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals
 		}(app)
 	}
 	wg.Wait()
-
-	return terminateCtx
 }
