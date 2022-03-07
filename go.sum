@@ -14,3 +14,7 @@ github.com/goinsane/xcontext v1.5.5 h1:S1d94ThH1luqOEQzEaYaYLHcOpXpCVu/dly52NC01
 github.com/goinsane/xcontext v1.5.5/go.mod h1:y+fK+cXBf9T6MBP7XFXQbYrsyhzlhRVVIIRVTxc6QjY=
 github.com/goinsane/xcontext v1.5.6 h1:Iyqede4/XFqP+zAbELvHO3Zjo6rogRg2X77pL1Ft2bQ=
 github.com/goinsane/xcontext v1.5.6/go.mod h1:y+fK+cXBf9T6MBP7XFXQbYrsyhzlhRVVIIRVTxc6QjY=
+github.com/goinsane/xcontext v1.6.0 h1:hp2XA9WLOUZRmWRBeUANAsVtPld+xbJp7SQYfTnpA84=
+github.com/goinsane/xcontext v1.6.0/go.mod h1:y+fK+cXBf9T6MBP7XFXQbYrsyhzlhRVVIIRVTxc6QjY=
+github.com/goinsane/xcontext v1.6.1 h1:WBuffQmlulCA8mzs4oXS8XDH3gYuUMWfbdcHmlEFlS4=
+github.com/goinsane/xcontext v1.6.1/go.mod h1:y+fK+cXBf9T6MBP7XFXQbYrsyhzlhRVVIIRVTxc6QjY=
