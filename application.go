@@ -29,11 +29,10 @@ func Run(app Application, terminateTimeout time.Duration, terminateSignals ...os
 }
 
 // RunAll runs all Application's in common Context by application lifecycle with terminateTimeout and terminateSignals.
-// It returns terminateCtx as done or not done that used in Application.Terminate.
+// It returns terminateCtx anyway if it is done or not done.
 func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals ...os.Signal) (terminateCtx context.Context) {
 	ctx := xcontext.WithTerminate(context.Background())
 	defer ctx.Terminate()
-	terminateCtx = xcontext.WithTerminate(context.Background())
 
 	go func() {
 		ch := make(chan os.Signal, 1)
@@ -64,10 +63,7 @@ func RunAll(apps []Application, terminateTimeout time.Duration, terminateSignals
 	go func() {
 		defer wg.Done()
 		<-ctx.Done()
-
-		time.AfterFunc(terminateTimeout, func() {
-			terminateCtx.(Context).Terminate()
-		})
+		terminateCtx = xcontext.WithTimeout2(context.Background(), terminateTimeout)
 
 		var wg sync.WaitGroup
 		defer wg.Wait()
