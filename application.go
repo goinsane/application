@@ -28,38 +28,40 @@ func Run(app Application, terminateTimeout, quitTimeout time.Duration, terminate
 // RunAll runs all instances of Application in common Context by the application lifecycle with timeouts and terminate signals.
 // It returns false if the quit timeout occurs.
 func RunAll(apps []Application, terminateTimeout, quitTimeout time.Duration, terminateSignals ...os.Signal) bool {
-	ctx := xcontext.WithCancelable2(context.Background())
-	defer ctx.Cancel()
-	terminateCtx, terminateCtxCancel := xcontext.DelayAfterContext(ctx, terminateTimeout)
-	defer terminateCtxCancel()
+	appCtx := xcontext.WithCancelable2(context.Background())
+	defer appCtx.Cancel()
+
+	termCtx := xcontext.WithCancelable2(xcontext.DelayAfterContext2(appCtx, terminateTimeout))
+	defer termCtx.Cancel()
+
 	go func() {
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, terminateSignals...)
 		<-ch
-		ctx.Cancel()
+		appCtx.Cancel()
 	}()
 
 	quittedCh := make(chan struct{})
 	go func() {
-		lifecycle(ctx, apps, terminateCtx)
+		lifecycle(appCtx, termCtx, apps)
 		close(quittedCh)
 	}()
 	select {
 	case <-quittedCh:
 		return true
-	case <-xcontext.DelayAfterContext2(terminateCtx, quitTimeout).Done():
+	case <-xcontext.DelayAfterContext2(termCtx, quitTimeout).Done():
 		return false
 	}
 }
 
-func lifecycle(ctx xcontext.CancelableContext, apps []Application, terminateCtx context.Context) {
+func lifecycle(appCtx, termCtx xcontext.CancelableContext, apps []Application) {
 	var wg sync.WaitGroup
 
 	for _, app := range apps {
 		wg.Add(1)
 		go func(app Application) {
 			defer wg.Done()
-			app.Start(ctx)
+			app.Start(appCtx)
 		}(app)
 	}
 	wg.Wait()
@@ -68,22 +70,23 @@ func lifecycle(ctx xcontext.CancelableContext, apps []Application, terminateCtx 
 		wg.Add(1)
 		go func(app Application) {
 			defer wg.Done()
-			app.Run(ctx)
+			app.Run(appCtx)
 		}(app)
 	}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		<-ctx.Done()
+		<-appCtx.Done()
 		for _, app := range apps {
 			wg.Add(1)
 			go func(app Application) {
 				defer wg.Done()
-				app.Terminate(terminateCtx)
+				app.Terminate(termCtx)
 			}(app)
 		}
 	}()
 	wg.Wait()
+	termCtx.Cancel()
 
 	for _, app := range apps {
 		wg.Add(1)
