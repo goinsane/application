@@ -19,13 +19,13 @@ type Application interface {
 	Stop()
 }
 
-// Run runs an Application by the application lifecycle with timeouts and terminate signals.
+// Run runs an instance of Application by the application lifecycle with timeouts and terminate signals.
 // It returns false if the quit timeout occurs.
 func Run(app Application, terminateTimeout, quitTimeout time.Duration, terminateSignals ...os.Signal) bool {
 	return RunAll([]Application{app}, terminateTimeout, quitTimeout, terminateSignals...)
 }
 
-// RunAll runs all Application's in common Context by the application lifecycle with timeouts and terminate signals.
+// RunAll runs all instances of Application in common Context by the application lifecycle with timeouts and terminate signals.
 // It returns false if the quit timeout occurs.
 func RunAll(apps []Application, terminateTimeout, quitTimeout time.Duration, terminateSignals ...os.Signal) bool {
 	ctx := xcontext.WithCancelable2(context.Background())
