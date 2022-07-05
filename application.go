@@ -13,14 +13,11 @@ import (
 
 // Application is an interface for handling application lifecycle.
 type Application interface {
-	Start(ctx Context)
-	Run(ctx Context)
+	Start(ctx xcontext.CancelableContext)
+	Run(ctx xcontext.CancelableContext)
 	Terminate(ctx context.Context)
 	Stop()
 }
-
-// Context is a custom implementation of context.Context with Terminate() method to terminate application.
-type Context = xcontext.TerminateContext
 
 // Run runs an Application by the application lifecycle with timeouts and terminate signals.
 // It returns false if the quit timeout occurs.
@@ -31,15 +28,15 @@ func Run(app Application, terminateTimeout, quitTimeout time.Duration, terminate
 // RunAll runs all Application's in common Context by the application lifecycle with timeouts and terminate signals.
 // It returns false if the quit timeout occurs.
 func RunAll(apps []Application, terminateTimeout, quitTimeout time.Duration, terminateSignals ...os.Signal) bool {
-	ctx := xcontext.WithTerminate2(context.Background())
-	defer ctx.Terminate()
+	ctx := xcontext.WithCancelable2(context.Background())
+	defer ctx.Cancel()
 	terminateCtx, terminateCtxCancel := xcontext.DelayAfterContext(ctx, terminateTimeout)
 	defer terminateCtxCancel()
 	go func() {
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, terminateSignals...)
 		<-ch
-		ctx.Terminate()
+		ctx.Cancel()
 	}()
 
 	quittedCh := make(chan struct{})
@@ -55,7 +52,7 @@ func RunAll(apps []Application, terminateTimeout, quitTimeout time.Duration, ter
 	}
 }
 
-func lifecycle(ctx Context, apps []Application, terminateCtx context.Context) {
+func lifecycle(ctx xcontext.CancelableContext, apps []Application, terminateCtx context.Context) {
 	var wg sync.WaitGroup
 
 	for _, app := range apps {
