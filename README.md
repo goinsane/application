@@ -10,13 +10,15 @@ This package provides an Application interface to run applications in a lifecycl
 Start, Run, Terminate, Stop.
 
 - **Start** method always runs the beginning of the lifecycle even the termination process was triggered.
-- **Run** method runs immediately after Start method.
+- **Run** method runs immediately after Start method unless the termination process was triggered.
 The termination process may be triggered before entering into Run method.
 While in Run method, Terminate method may be running at the same time.
-- **Terminate** method runs immediately after the termination process is triggered.
+- **Terminate** method runs immediately after the termination process is triggered
+unless the termination process was triggered before Run method.
 Terminate method always runs after Start method.
 While in Terminate method, Run method may be running at the same time.
-- **Stop** method runs immediately after Run and Terminate methods were returned.
+- **Stop** method runs immediately after Run and Terminate methods were returned
+unless the termination process was triggered before Run method. Otherwise Stop method runs after Start method.
 The lifecycle ends with Stop method was returned.
 
 ## Application Context
@@ -29,9 +31,9 @@ The calling *Cancel* method of the application context cancels the context, and 
 ## Termination process
 
 Termination process can be triggered with the canceling of application contexts or termination signals.
-When termination process started, Terminate method always will be called with a *Context* has the given terminate timeout.
-If termination process started before Run method, it waits the ending of Start method to call Terminate method.
-Otherwise it calls Terminate method immediately.
+When termination process started, Terminate method always will be called with a *Context* has the given terminate timeout
+unless the termination process was triggered before Run method.
+If termination process started before Run method, it doesn't call Terminate method.
 
 ## Timeouts
 

@@ -66,27 +66,29 @@ func lifecycle(appCtx, termCtx xcontext.CancelableContext, apps []Application) {
 	}
 	wg.Wait()
 
-	for _, app := range apps {
-		wg.Add(1)
-		go func(app Application) {
-			defer wg.Done()
-			app.Run(appCtx)
-		}(app)
-	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		<-appCtx.Done()
+	if appCtx.Err() == nil {
 		for _, app := range apps {
 			wg.Add(1)
 			go func(app Application) {
 				defer wg.Done()
-				app.Terminate(termCtx)
+				app.Run(appCtx)
 			}(app)
 		}
-	}()
-	wg.Wait()
-	termCtx.Cancel()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-appCtx.Done()
+			for _, app := range apps {
+				wg.Add(1)
+				go func(app Application) {
+					defer wg.Done()
+					app.Terminate(termCtx)
+				}(app)
+			}
+		}()
+		wg.Wait()
+		termCtx.Cancel()
+	}
 
 	for _, app := range apps {
 		wg.Add(1)
