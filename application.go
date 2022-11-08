@@ -3,8 +3,6 @@ package application
 
 import (
 	"context"
-	"os"
-	"os/signal"
 	"sync"
 	"time"
 
@@ -19,27 +17,20 @@ type Application interface {
 	Stop()
 }
 
-// Run runs an instance of Application by the application lifecycle with timeouts and terminate signals.
+// Run runs an instance of Application by the application lifecycle with the given ctx and timeouts.
 // It returns false if the quit timeout occurs.
-func Run(app Application, terminateTimeout, quitTimeout time.Duration, terminateSignals ...os.Signal) bool {
-	return RunAll([]Application{app}, terminateTimeout, quitTimeout, terminateSignals...)
+func Run(ctx context.Context, app Application, terminateTimeout, quitTimeout time.Duration) bool {
+	return RunAll(ctx, []Application{app}, terminateTimeout, quitTimeout)
 }
 
-// RunAll runs all instances of Application in common Context by the application lifecycle with timeouts and terminate signals.
+// RunAll runs all instances of Application in common context.Context by the application lifecycle with the given ctx and timeouts.
 // It returns false if the quit timeout occurs.
-func RunAll(apps []Application, terminateTimeout, quitTimeout time.Duration, terminateSignals ...os.Signal) bool {
-	appCtx := xcontext.WithCancelable2(context.Background())
+func RunAll(ctx context.Context, apps []Application, terminateTimeout, quitTimeout time.Duration) bool {
+	appCtx := xcontext.WithCancelable2(ctx)
 	defer appCtx.Cancel()
 
 	termCtx := xcontext.WithCancelable2(xcontext.DelayAfterContext2(appCtx, terminateTimeout))
 	defer termCtx.Cancel()
-
-	go func() {
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, terminateSignals...)
-		<-ch
-		appCtx.Cancel()
-	}()
 
 	quittedCh := make(chan struct{})
 	go func() {

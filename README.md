@@ -30,7 +30,7 @@ The calling *Cancel* method of the application context cancels the context, and 
 
 ## Termination process
 
-Termination process can be triggered with the canceling of application contexts or termination signals.
+Termination process can be triggered with the canceling of application contexts or cancelling initial context.
 When termination process started, Terminate method always will be called with a *Context* has the given terminate timeout
 unless the termination process was triggered before Run method.
 If termination process started before Run method, it doesn't call Terminate method.
