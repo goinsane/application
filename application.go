@@ -78,8 +78,8 @@ func lifecycle(appCtx, termCtx xcontext.CancelableContext, apps []Application) {
 			}
 		}()
 		wg.Wait()
-		termCtx.Cancel()
 	}
+	termCtx.Cancel()
 
 	for _, app := range apps {
 		wg.Add(1)
