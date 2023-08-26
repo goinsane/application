@@ -5,8 +5,6 @@ import (
 	"context"
 	"sync"
 	"time"
-
-	"github.com/goinsane/xcontext"
 )
 
 // Application is an interface for handling application lifecycle.
@@ -26,33 +24,32 @@ func Run(ctx context.Context, app Application, terminateTimeout, quitTimeout tim
 // RunAll runs all instances of Application in common context.Context by the application lifecycle with the given ctx and timeouts.
 // It returns false if the quit timeout occurs.
 func RunAll(ctx context.Context, apps []Application, terminateTimeout, quitTimeout time.Duration) bool {
-	appCtx := xcontext.WithCancelable2(ctx)
-	defer appCtx.Cancel()
-
-	termCtx := xcontext.WithCancelable2(xcontext.DelayAfterContext2(appCtx, terminateTimeout))
-	defer termCtx.Cancel()
-
-	quittedCh := make(chan struct{})
-	go func() {
-		lifecycle(appCtx, termCtx, apps)
-		close(quittedCh)
-	}()
+	stopped := make(chan struct{})
+	go lifecycle(ctx, apps, terminateTimeout, stopped)
+	<-ctx.Done()
+	quitCtx, quitCancel := context.WithTimeout(context.Background(), quitTimeout)
+	defer quitCancel()
 	select {
-	case <-quittedCh:
+	case <-stopped:
 		return true
-	case <-xcontext.DelayAfterContext2(termCtx, quitTimeout).Done():
+	case <-quitCtx.Done():
 		return false
 	}
 }
 
-func lifecycle(appCtx, termCtx xcontext.CancelableContext, apps []Application) {
+func lifecycle(ctx context.Context, apps []Application, terminateTimeout time.Duration, stopped chan struct{}) {
+	defer close(stopped)
+
 	var wg sync.WaitGroup
+
+	appCtx, appCancel := context.WithCancel(ctx)
+	defer appCancel()
 
 	for _, app := range apps {
 		wg.Add(1)
 		go func(app Application) {
 			defer wg.Done()
-			app.Start(appCtx, appCtx.Cancel)
+			app.Start(appCtx, appCancel)
 		}(app)
 	}
 	wg.Wait()
@@ -62,13 +59,13 @@ func lifecycle(appCtx, termCtx xcontext.CancelableContext, apps []Application) {
 			wg.Add(1)
 			go func(app Application) {
 				defer wg.Done()
-				app.Run(appCtx, appCtx.Cancel)
+				app.Run(appCtx, appCancel)
 			}(app)
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			<-appCtx.Done()
+		<-appCtx.Done()
+		func() {
+			termCtx, termCancel := context.WithTimeout(context.Background(), terminateTimeout)
+			defer termCancel()
 			for _, app := range apps {
 				wg.Add(1)
 				go func(app Application) {
@@ -76,10 +73,9 @@ func lifecycle(appCtx, termCtx xcontext.CancelableContext, apps []Application) {
 					app.Terminate(termCtx)
 				}(app)
 			}
+			wg.Wait()
 		}()
-		wg.Wait()
 	}
-	termCtx.Cancel()
 
 	for _, app := range apps {
 		wg.Add(1)
