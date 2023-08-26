@@ -26,14 +26,14 @@ type Application interface {
 
 // Run runs an instance of Application by the application lifecycle with the given ctx and timeouts.
 // It returns false if the quit timeout occurs.
-// Quit timeout has to be greater then terminate timeout. And it starts after the application context was canceled.
+// Quit timeout has to be greater than terminate timeout. And it starts after the application context was canceled.
 func Run(ctx context.Context, app Application, terminateTimeout, quitTimeout time.Duration) bool {
 	return RunAll(ctx, []Application{app}, terminateTimeout, quitTimeout)
 }
 
 // RunAll runs all instances of Application in common context.Context by the application lifecycle with the given ctx and timeouts.
 // It returns false if the quit timeout occurs.
-// Quit timeout has to be greater then terminate timeout. And it starts after the application context was canceled.
+// Quit timeout has to be greater than terminate timeout. And it starts after the application context was canceled.
 func RunAll(ctx context.Context, apps []Application, terminateTimeout, quitTimeout time.Duration) bool {
 	appCtx, appCancel := context.WithCancel(ctx)
 	defer appCancel()
