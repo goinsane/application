@@ -11,8 +11,8 @@ import (
 
 // Application is an interface for handling application lifecycle.
 type Application interface {
-	Start(ctx xcontext.CancelableContext)
-	Run(ctx xcontext.CancelableContext)
+	Start(ctx context.Context, cancel context.CancelFunc)
+	Run(ctx context.Context, cancel context.CancelFunc)
 	Terminate(ctx context.Context)
 	Stop()
 }
@@ -52,7 +52,7 @@ func lifecycle(appCtx, termCtx xcontext.CancelableContext, apps []Application) {
 		wg.Add(1)
 		go func(app Application) {
 			defer wg.Done()
-			app.Start(appCtx)
+			app.Start(appCtx, appCtx.Cancel)
 		}(app)
 	}
 	wg.Wait()
@@ -62,7 +62,7 @@ func lifecycle(appCtx, termCtx xcontext.CancelableContext, apps []Application) {
 			wg.Add(1)
 			go func(app Application) {
 				defer wg.Done()
-				app.Run(appCtx)
+				app.Run(appCtx, appCtx.Cancel)
 			}(app)
 		}
 		wg.Add(1)
