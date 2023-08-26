@@ -2,27 +2,25 @@ package application
 
 import (
 	"context"
-
-	"github.com/goinsane/xcontext"
 )
 
 // Instance is a method wrapper to implement Application interface.
 type Instance struct {
-	StartFunc     func(ctx xcontext.CancelableContext)
-	RunFunc       func(ctx xcontext.CancelableContext)
+	StartFunc     func(ctx context.Context, cancel context.CancelFunc)
+	RunFunc       func(ctx context.Context, cancel context.CancelFunc)
 	TerminateFunc func(ctx context.Context)
 	StopFunc      func()
 }
 
-func (a *Instance) Start(ctx xcontext.CancelableContext) {
+func (a *Instance) Start(ctx context.Context, cancel context.CancelFunc) {
 	if a.StartFunc != nil {
-		a.StartFunc(ctx)
+		a.StartFunc(ctx, cancel)
 	}
 }
 
-func (a *Instance) Run(ctx xcontext.CancelableContext) {
+func (a *Instance) Run(ctx context.Context, cancel context.CancelFunc) {
 	if a.RunFunc != nil {
-		a.RunFunc(ctx)
+		a.RunFunc(ctx, cancel)
 	}
 }
 
