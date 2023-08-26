@@ -24,9 +24,15 @@ func Run(ctx context.Context, app Application, terminateTimeout, quitTimeout tim
 // RunAll runs all instances of Application in common context.Context by the application lifecycle with the given ctx and timeouts.
 // It returns false if the quit timeout occurs.
 func RunAll(ctx context.Context, apps []Application, terminateTimeout, quitTimeout time.Duration) bool {
+	appCtx, appCancel := context.WithCancel(ctx)
+	defer appCancel()
+
 	stopped := make(chan struct{})
-	go lifecycle(ctx, apps, terminateTimeout, stopped)
-	<-ctx.Done()
+
+	go lifecycle(appCtx, appCancel, apps, terminateTimeout, stopped)
+
+	<-appCtx.Done()
+
 	quitCtx, quitCancel := context.WithTimeout(context.Background(), quitTimeout)
 	defer quitCancel()
 	select {
@@ -37,11 +43,8 @@ func RunAll(ctx context.Context, apps []Application, terminateTimeout, quitTimeo
 	}
 }
 
-func lifecycle(ctx context.Context, apps []Application, terminateTimeout time.Duration, stopped chan struct{}) {
+func lifecycle(appCtx context.Context, appCancel context.CancelFunc, apps []Application, terminateTimeout time.Duration, stopped chan struct{}) {
 	var wg sync.WaitGroup
-
-	appCtx, appCancel := context.WithCancel(ctx)
-	defer appCancel()
 
 	for _, app := range apps {
 		wg.Add(1)
