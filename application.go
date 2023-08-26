@@ -38,8 +38,6 @@ func RunAll(ctx context.Context, apps []Application, terminateTimeout, quitTimeo
 }
 
 func lifecycle(ctx context.Context, apps []Application, terminateTimeout time.Duration, stopped chan struct{}) {
-	defer close(stopped)
-
 	var wg sync.WaitGroup
 
 	appCtx, appCancel := context.WithCancel(ctx)
@@ -85,4 +83,5 @@ func lifecycle(ctx context.Context, apps []Application, terminateTimeout time.Du
 		}(app)
 	}
 	wg.Wait()
+	close(stopped)
 }
