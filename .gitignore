@@ -26,6 +26,5 @@
 *.vscode
 
 /vendor
-/target
 
 /LOCALNOTES
